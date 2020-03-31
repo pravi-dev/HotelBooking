@@ -10,12 +10,10 @@ import com.m3bi.api.model.Room;
 @Repository
 public interface RoomDao extends JpaRepository<Room, Long> {
 
-	// @Query("select u from Room u where u.rmstatus = ?0")
-
-	// @Query(value = "SELECT * FROM ROOM WHERE RMSTATUS = ?1", nativeQuery = true)
 	List<Room> findByrmStatus(String rmstatus);
 
 	Room findByrmid(int rmid);
 
-	// List<Room> findByRmstatus(String available);
+	List<Room> findByUseridAndRmStatus(int userId, String status);
+
 }

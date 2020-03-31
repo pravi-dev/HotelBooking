@@ -28,7 +28,7 @@ public class RoomBookingController {
 	RoomServices roomService;
 
 	@GetMapping("/getUserDetails")
-	public List<Users> getPersonDetails() {
+	public List<Users> getUserDetails() {
 
 		return userService.getAllUsers();
 	}
@@ -45,8 +45,8 @@ public class RoomBookingController {
 		return optional.get();
 	}
 
-	@GetMapping("/getAvailableRoom")
-	public List<Room> getAvailableRoom() throws RoomNotFound {
+	@GetMapping("/getAvailableRooms")
+	public List<Room> getAvailableRooms() throws RoomNotFound {
 
 		List<Room> roomList = roomService.getAvaliableRoom(BookingStatusEnum.AVAILABLE.name());
 
@@ -58,10 +58,47 @@ public class RoomBookingController {
 		return roomList;
 	}
 
+	@PutMapping("/updateBonusPoints")
+	public String updateBonusPoints(@RequestParam int userId, @RequestParam int bounsPoints)
+			throws UserNotFoundException, RoomNotFound {
+
+		String status = "Bonus updated sucessfully";
+		Optional<Users> optionalUser = userService.getUserById(userId);
+		if (!optionalUser.isPresent()) {
+
+			throw new UserNotFoundException("User not avialble, please register user");
+		}
+
+		Users user = optionalUser.get();
+		int bonusPoints = user.getBonusPoints() + bounsPoints;
+
+		List<Room> roomList = roomService.getApprovalPendingRooms(userId, BookingStatusEnum.PENDING_APPROVAL.name());
+
+		if (roomList.size() != 0) {
+			for (Room room : roomList) {
+
+				if (bonusPoints >= room.getRmPrice()) {
+
+					room.setRmStatus(BookingStatusEnum.BOOKED.name());
+
+					bonusPoints = bonusPoints - room.getRmPrice();
+				}
+			}
+			roomService.updateRoomRecord(roomList);
+
+			status = "Room has been booked";
+		}
+
+		userService.updateBonus(user);
+
+		return status;
+
+	}
+
 	@PutMapping("/bookRoom")
 	public String bookRoom(@RequestParam int userID, @RequestParam int roomId)
 			throws UserNotFoundException, RoomNotFound {
-
+		String status = "room booking";
 		Optional<Users> optionalUser = userService.getUserById(userID);
 		if (!optionalUser.isPresent()) {
 
@@ -78,24 +115,41 @@ public class RoomBookingController {
 		}
 
 		Room room = optionalRoom.get();
-		if (room.getRmStatus().equals(BookingStatusEnum.AVAILABLE.name())
-				&& user.getBonusPoints() >= room.getRmPrice()) {
-			room.setRmStatus(BookingStatusEnum.BOOKED.name());
-			room.setUserid(user.getUserid());
-			user.setBonusPoints(user.getBonusPoints() - room.getRmPrice());
-			roomService.bookRoom(room);
-			userService.updateBonus(user);
-			return "Congratulations Room has been booked";
+
+		List<Room> roomList = roomService.getAvaliableRoom(BookingStatusEnum.AVAILABLE.name());
+		if (roomList.size() <= 0) {
+
+			if (room.getRmStatus().equals(BookingStatusEnum.PENDING_APPROVAL.name())
+					&& user.getBonusPoints() >= room.getRmPrice()) {
+				room.setRmStatus(BookingStatusEnum.BOOKED.name());
+				room.setUserid(user.getUserid());
+				user.setBonusPoints(user.getBonusPoints() - room.getRmPrice());
+				status = "Congratulations Room has been booked";
+			} else {
+
+				status = "No rooms available for booking, you can select room which is pending for approval.";
+			}
+
 		} else {
 
-			room.setUserid(user.getUserid());
-			room.setRmStatus(BookingStatusEnum.PENDING_APPROVAL.name());
-			user.setBonusPoints(user.getBonusPoints() - room.getRmPrice());
-			roomService.bookRoom(room);
-			userService.updateBonus(user);
+			if (room.getRmStatus().equals(BookingStatusEnum.AVAILABLE.name())
+					&& user.getBonusPoints() >= room.getRmPrice()) {
+				room.setRmStatus(BookingStatusEnum.BOOKED.name());
+				room.setUserid(user.getUserid());
+				user.setBonusPoints(user.getBonusPoints() - room.getRmPrice());
+				status = "Congratulations Room has been booked";
 
-			return "Booking is pending for approval";
+			} else {
+
+				room.setUserid(user.getUserid());
+				room.setRmStatus(BookingStatusEnum.PENDING_APPROVAL.name());
+				status = "Booking is pending for approval";
+			}
+
 		}
 
+		roomService.bookRoom(room);
+		userService.updateBonus(user);
+		return status;
 	}
 }

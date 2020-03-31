@@ -20,6 +20,16 @@ public class RoomServices {
 		return roomDao.findByrmStatus(status);
 	}
 
+	public List<Room> getApprovalPendingRooms(int userId, String status) {
+
+		return roomDao.findByUseridAndRmStatus(userId, status);
+	}
+
+	public void updateRoomRecord(List<Room> listRoom) {
+
+		roomDao.saveAll(listRoom);
+	}
+
 	public Optional<Room> getRoomDetails(int roomId) {
 
 		return Optional.of(roomDao.findByrmid(roomId));
